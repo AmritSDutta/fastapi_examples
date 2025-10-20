@@ -1,7 +1,7 @@
 from app.data.CoreDB import CoreDB
 import logging
 
-logger = logging.getLogger("EmployeeRepository")
+logger = logging.getLogger(__name__)
 
 
 class EmployeeRepository:

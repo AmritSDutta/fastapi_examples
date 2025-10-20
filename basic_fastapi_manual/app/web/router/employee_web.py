@@ -1,5 +1,5 @@
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Path
 
 from app.data.EmployeeRepository import EmployeeRepository
 from app.data.CoreDB import CoreDB, get_db
@@ -7,7 +7,7 @@ from app.schema.employee import Employee
 from app.service.EmployeeService import EmployeeService
 import logging
 
-logger = logging.getLogger("employee_web")
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/employees", tags=["employees"])
 
 
@@ -17,9 +17,10 @@ def get_employee_service(db: CoreDB = Depends(get_db)) -> EmployeeService:
 
 
 @router.get("/{employee_id}", response_model=Employee, status_code=200)
-async def root(emp_id: int, svc: EmployeeService = Depends(get_employee_service)) -> Employee:
+async def root(employee_id: int = Path(..., description="Employee ID from path"),
+               svc: EmployeeService = Depends(get_employee_service)) -> Employee:
     logger.info('inside @router.get("/{employee_id}')
-    emp = await svc.get_employee(emp_id)
+    emp = await svc.get_employee(employee_id)
     if not emp:
         raise HTTPException(status_code=404, detail="Employee not found")
     return emp

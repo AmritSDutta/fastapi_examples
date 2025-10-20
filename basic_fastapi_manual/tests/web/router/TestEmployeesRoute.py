@@ -18,10 +18,10 @@ class TestEmployeesRoute(unittest.TestCase):
         self.mock_svc.get_employee = AsyncMock()
 
         async def override_get_employee_service():
-            return self.mock_svc
+            return Employee(employee_id=1, first_name="Alice", salary=10.0)
 
         # ✅ Correct override
-        # self.app.dependency_overrides[get_employee_service] = override_get_employee_service
+        self.app.dependency_overrides[get_employee_service] = override_get_employee_service
         self.client = TestClient(self.app)
 
     def tearDown(self):
