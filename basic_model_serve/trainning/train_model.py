@@ -9,8 +9,6 @@ from joblib import dump
 from sklearn.datasets import load_iris
 from sklearn.ensemble import RandomForestClassifier
 
-print(f'XXXXXXX: {sys.executable}')
-
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -18,6 +16,9 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
+
+
+logger.info(f'System env: {sys.executable}')
 
 # ensure directory exists
 os.makedirs("models", exist_ok=True)
