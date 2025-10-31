@@ -44,7 +44,7 @@ async def lifespan(app: FastAPI):
     del app.state.model
 
 
-app = FastAPI(title="Async ML API", lifespan=lifespan)
+app = FastAPI(title="IRIS data ML API", lifespan=lifespan)
 
 
 @app.post("/predict",
