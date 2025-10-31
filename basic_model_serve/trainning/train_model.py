@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 import time
 import uuid
 
@@ -7,7 +8,7 @@ import wandb
 from joblib import dump
 from sklearn.datasets import load_iris
 from sklearn.ensemble import RandomForestClassifier
-import sys
+
 print(f'XXXXXXX: {sys.executable}')
 
 # Configure logging

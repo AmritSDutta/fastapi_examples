@@ -3,12 +3,12 @@ import logging
 from contextlib import asynccontextmanager
 
 import joblib
+import wandb
 from fastapi import FastAPI
 from litellm.proxy.common_utils.swagger_utils import ErrorResponse
 
 from app.schemas.request_response import PredictRequest, PredictResponse
 from app.service.predict_service import predict_async
-import wandb
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +47,6 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Async ML API", lifespan=lifespan)
 
 
-# [[5.1 3.5 1.4 0.2]]
 @app.post("/predict",
           response_model=PredictResponse,
           responses={400: {"model": ErrorResponse, "description": "Bad Request — features must be length 4"}})
