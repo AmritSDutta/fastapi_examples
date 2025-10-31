@@ -4,3 +4,4 @@ scikit-learn
 joblib
 wandb
 python-dotenv
+pydantic_settings
