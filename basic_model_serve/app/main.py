@@ -5,9 +5,8 @@ from contextlib import asynccontextmanager
 import joblib
 import wandb
 from fastapi import FastAPI
-from litellm.proxy.common_utils.swagger_utils import ErrorResponse
 
-from app.schemas.request_response import PredictRequest, PredictResponse
+from app.schemas.request_response import PredictRequest, PredictResponse, ErrorResponse
 from app.service.predict_service import predict_async
 
 logger = logging.getLogger(__name__)
