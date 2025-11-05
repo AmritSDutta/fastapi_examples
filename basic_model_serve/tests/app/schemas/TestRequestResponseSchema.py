@@ -1,7 +1,6 @@
 import unittest
 from pydantic import ValidationError
-
-from app.schemas.request_response import PredictRequest
+from app.schemas.request_response import PredictRequest, PredictResponse
 
 
 class TestRequestResponseSchema(unittest.TestCase):
@@ -17,6 +16,10 @@ class TestRequestResponseSchema(unittest.TestCase):
         exc = cm.exception
         self.assertTrue(exc.errors())
         self.assertIsInstance(exc, ValidationError)
+
+    def test_valid_response(self):
+        res = PredictResponse(prediction=0)
+        self.assertEqual(res.prediction, 0)
 
 
 if __name__ == "__main__":
