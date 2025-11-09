@@ -3,13 +3,15 @@ from typing import List
 import asyncpg
 import logging
 import numpy as np
+
+from app.config.Settings import get_settings
 from app.database.custom_embedding import get_gemini_embedding
 from app.schema.document_record import DocumentRecord
 
 logger = logging.getLogger(__name__)
 TABLE_NAME = "wines_3"
-EMBED_DIM = 256
-DB_DSN = "postgres://user:password@localhost/wine_review_gemini"
+EMBED_DIM = get_settings().EMBED_DIM
+DB_DSN = get_settings().DB_DSN  # "postgres://user:password@localhost/wine_review_gemini"
 
 
 async def get_query_embedding_async(text: str) -> List[float]:

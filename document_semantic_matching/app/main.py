@@ -3,6 +3,8 @@ from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI
+
+from app.config.Settings import get_settings
 from app.config.logging_config import setup_logging
 from app.database.vector_db import db
 from app.routers import app_router
@@ -10,6 +12,8 @@ from app.routers import app_router
 # Initialize global logging before other imports
 setup_logging()
 logger = logging.getLogger(__name__)
+app_name = get_settings().APP_NAME
+port = get_settings().PORT
 
 
 @asynccontextmanager
@@ -22,7 +26,7 @@ async def lifespan(app_ins: FastAPI):
         print('finish')
 
 
-app = FastAPI(title="doc App", lifespan=lifespan)
+app = FastAPI(title=app_name, lifespan=lifespan)
 app.include_router(app_router.router, prefix="/api")
 
 
@@ -33,4 +37,4 @@ def root():
 
 
 if __name__ == " __main__":
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run("main:app", host="127.0.0.1", port=port, reload=True)

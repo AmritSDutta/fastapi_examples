@@ -4,7 +4,7 @@ import time
 import google.generativeai as genai
 from google.api_core.exceptions import ResourceExhausted
 
-EMBEDDING_MODEL = "models/text-embedding-004"
+from app.config.Settings import get_settings
 
 
 def get_gemini_embedding(input_sentence: str, specific_task_type: str = 'semantic_similarity', dim: int = 256):
@@ -15,7 +15,7 @@ def get_gemini_embedding(input_sentence: str, specific_task_type: str = 'semanti
     for attempt in range(max_retries):
         try:
             result = genai.embed_content(
-                model=EMBEDDING_MODEL,
+                model=get_settings().EMBEDDING_MODEL,
                 content=input_sentence,
                 task_type=specific_task_type,
                 output_dimensionality=dim
