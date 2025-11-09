@@ -23,6 +23,7 @@ async def lifespan(app_ins: FastAPI):
     try:
         yield
     finally:
+        db.close()
         print('finish')
 
 
