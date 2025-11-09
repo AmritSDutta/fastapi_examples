@@ -6,6 +6,7 @@ from fastapi import FastAPI
 
 from app.config.Settings import get_settings
 from app.config.logging_config import setup_logging
+from app.database.data.batch_insert import batch_insert_async
 from app.database.vector_db import db
 from app.routers import app_router
 
@@ -20,10 +21,11 @@ port = get_settings().PORT
 async def lifespan(app_ins: FastAPI):
     print(f'start: {app_ins.__str__()}')
     await db.init()
+    await batch_insert_async()
     try:
         yield
     finally:
-        db.close()
+        await db.close()
         print('finish')
 
 

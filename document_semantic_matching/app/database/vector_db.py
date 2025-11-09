@@ -9,7 +9,6 @@ from app.database.custom_embedding import get_gemini_embedding
 from app.schema.document_record import DocumentRecord
 
 logger = logging.getLogger(__name__)
-TABLE_NAME = "wines_3"
 EMBED_DIM = get_settings().EMBED_DIM
 DB_DSN = get_settings().DB_DSN  # "postgres://user:password@localhost/wine_review_gemini"
 
@@ -44,10 +43,11 @@ class VectorDb:
         arr_literal = self._vector_literal(query_emb)
         sql = f"""
           SELECT title, description
-          FROM {TABLE_NAME}
+          FROM {get_settings().TABLE_NAME}
           ORDER BY embedding <=> $1::vector
           LIMIT $2
         """
+        logging.info(sql)
         async with self._pool.acquire() as conn:
             rows = await conn.fetch(sql, arr_literal, k)
         return [DocumentRecord(name=r['title'], description=r['description']) for r in rows]

@@ -18,22 +18,42 @@ class Settings(BaseSettings):
     EMBED_DIM: int = 256
     DB_DSN: str = 'postgres://user:password@localhost/wine_review_gemini'
     EMBEDDING_MODEL: str = 'models/text-embedding-004'
+    DB_NAME: str = 'wine_review_gemini'
+    DB_USER: str = 'user'
+    DB_PASSWORD: str = 'password'
+    CSV_FILE: str = 'data/wine_reviews.csv'
+    BATCH_SIZE: int = 10
+    SLEEP_BETWEEN_BATCHES: int = 2
+
+    BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent  # points to project_root
+
+    @property
+    def csv_file_path(self) -> Path:
+        """Return absolute, validated path to the CSV."""
+        path = self.BASE_DIR / self.CSV_FILE
+        if not path.exists():
+            raise FileNotFoundError(f"CSV file not found at {path}")
+        return path
 
     class Config:
         env_file = DOTENV_PATH  # Path to your .env file
         env_file_encoding = "utf-8"
 
 
-_settings = Settings()  # Singleton instance
+_settings: Settings | None = None  # Singleton instance
 
 
 def get_settings() -> Settings:
-    print(DOTENV_PATH)
+    global _settings
 
-    logging.info('Setting Loaded')
-    logging.info(f"CWD: {os.getcwd()}")
-    logging.info(f"model_dump: {_settings.model_dump()}")
+    if _settings is None:
+        _settings = Settings()  # create instance
+        logging.info("Settings Loaded")
+
+        # Lazy init only once
+        print(DOTENV_PATH)
+
+        logging.info(f"CWD: {os.getcwd()}")
+        logging.info(f"model_dump: {_settings.model_dump()}")
+
     return _settings
-
-
-
