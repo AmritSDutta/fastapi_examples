@@ -4,9 +4,10 @@ This service performs **semantic document retrieval** by embedding text data usi
 
 ---
 
-## ⚙️ Running Tests
+## ⚙️ Running app & Tests
 
 ```bash
+python -m uvicorn app.main:app --reload
 pytest -v
 ```
 
