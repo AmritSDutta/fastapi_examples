@@ -17,10 +17,6 @@ def get_document_service(db: VectorDb = Depends(get_db)) -> DocumentService:
     return DocumentService(DocumentRepository(db))
 
 
-def get_matching_docs(search_term, limit):
-    pass
-
-
 @doc_router.post("/search", status_code=200, response_model=List[DocumentRecord])
 async def search_docs(req: SearchRequest, svc: DocumentService = Depends(get_document_service)) -> List[DocumentRecord]:
     """

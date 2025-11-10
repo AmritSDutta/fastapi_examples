@@ -34,9 +34,9 @@ app.include_router(app_router.router, prefix="/api")
 
 
 @app.get("/")
-def root():
-    logger.info('{"message1": "Hello doc server"}')
-    return {"message": "Hello doc server"}
+async def health():
+    logger.info('{"health": "Server in fine health"}')
+    return {"health": "Server in fine health"}
 
 
 if __name__ == " __main__":

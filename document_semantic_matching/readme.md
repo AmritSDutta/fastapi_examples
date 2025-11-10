@@ -1,0 +1,2 @@
+Running test:
+    pytest -v
