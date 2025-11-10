@@ -57,11 +57,12 @@ def _process_in_batches(cur, data):
 # -----------------------------------------------------------------------------
 def _do_batch_insert():
     """Embed a slice of the wine review dataset and store it in Postgres."""
-    # Connect to PostgreSQL
+    # Connect to PostgreSQL , with pgvector extension
+    logging.info(f'Connecting to db with url: {get_settings().DB_DSN}')
+
     conn = psycopg2.connect(
-        f"dbname={get_settings().DB_NAME} user={get_settings().DB_USER} password={get_settings().DB_PASSWORD}"
+        get_settings().DB_DSN
     )
-    logging.info(f'connecting: dbname={get_settings().DB_NAME} user={get_settings().DB_USER} password={get_settings().DB_PASSWORD}')
     cur = conn.cursor()
 
     try:
@@ -87,7 +88,7 @@ def _do_batch_insert():
         cur.execute(table_create_sql)
         _process_in_batches(cur, data)
         index_creation_sql = f"""
-                CREATE INDEX {get_settings().TABLE_NAME}_embedding_hnsw_idx ON {get_settings().TABLE_NAME} USING hnsw (embedding vector_cosine_ops);
+                CREATE INDEX IF NOT EXISTS {get_settings().TABLE_NAME}_embedding_hnsw_idx ON {get_settings().TABLE_NAME} USING hnsw (embedding vector_cosine_ops);
         """
         logging.info(f'Creating index: {index_creation_sql}')
         cur.execute(index_creation_sql)
@@ -104,8 +105,9 @@ def _do_batch_insert():
 def table_exists(table_name: str) -> bool:
     """Return True if table exists, else False."""
     try:
+        logging.info(f'Connecting to db with url for table exist test: {get_settings().DB_DSN}')
         conn = psycopg2.connect(
-            f"dbname={get_settings().DB_NAME} user={get_settings().DB_USER} password={get_settings().DB_PASSWORD}"
+            get_settings().DB_DSN
         )
         cur = conn.cursor()
         cur.execute(

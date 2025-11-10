@@ -1,9 +1,6 @@
 import json
 import time
-
-import google.generativeai as genai
-from google.api_core.exceptions import ResourceExhausted
-
+from google import genai
 from app.config.Settings import get_settings
 
 
@@ -11,20 +8,23 @@ def get_gemini_embedding(input_sentence: str, specific_task_type: str = 'semanti
     """Return a flattened embedding vector (for pgvector, etc.) using Gemini."""
     max_retries = 3
     backoff = 1.0
-
+    client = genai.Client()
     for attempt in range(max_retries):
         try:
-            result = genai.embed_content(
+            result = client.models.embed_content(
                 model=get_settings().EMBEDDING_MODEL,
-                content=input_sentence,
-                task_type=specific_task_type,
-                output_dimensionality=dim
+                contents=[input_sentence],
+                config={
+                    "task_type": specific_task_type,
+                    "output_dimensionality": dim
+                }
             )
-            return result["embedding"]
+            # result.embeddings or result.embedding? inspect SDK response
+            return result.embeddings[0].values
 
-        except ResourceExhausted as e:
+        except Exception as e:
 
-            print("\n⚠️  Rate limit hit (attempt %d/%d)" % (attempt + 1, max_retries))
+            print("Rate limit hit (attempt %d/%d)" % (attempt + 1, max_retries))
             print("Error message:", e.message if hasattr(e, "message") else str(e))
             # Headers are attached in e.response if available
             if hasattr(e, "response") and hasattr(e.response, "headers"):

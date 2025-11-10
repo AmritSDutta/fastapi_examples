@@ -1,5 +1,7 @@
 import asyncio
 from typing import List
+from urllib.parse import urlparse
+
 import asyncpg
 import logging
 import numpy as np
@@ -11,6 +13,7 @@ from app.schema.document_record import DocumentRecord
 logger = logging.getLogger(__name__)
 EMBED_DIM = get_settings().EMBED_DIM
 DB_DSN = get_settings().DB_DSN  # "postgres://user:password@localhost/wine_review_gemini"
+print(f'effective DB_DSN, debug step for docker based run : {DB_DSN}')
 
 
 async def get_query_embedding_async(text: str) -> List[float]:
@@ -26,10 +29,32 @@ class VectorDb:
         self._dsn = dsn
         self._pool: asyncpg.Pool | None = None
 
-    async def init(self):
-        if not self._pool:
-            self._pool = await asyncpg.create_pool(dsn=self._dsn)
-            logger.info('db initialized')
+    async def init(self, retries: int = 3, backoff: float = 1.0):
+        if self._pool:
+            return
+
+            # --- Normalize DSN ---
+        dsn = self._dsn.replace("+asyncpg", "") if self._dsn else self._dsn
+
+        # --- Extract host for DNS check ---
+        parsed = urlparse(dsn)
+        host = parsed.hostname or "localhost"
+
+        # --- Retry loop ---
+        for attempt in range(1, retries + 1):
+            try:
+                # DNS check (ensures Docker name resolves before asyncpg connects)
+                loop = asyncio.get_running_loop()
+                await loop.getaddrinfo(host, parsed.port or 5432)
+                self._pool = await asyncpg.create_pool(dsn=dsn)
+                logger.info("DB initialized successfully on attempt %d", attempt)
+                return
+            except Exception as e:
+                logger.warning("DB init failed (attempt %d/%d): %s", attempt, retries, e)
+                await asyncio.sleep(backoff)
+                backoff *= 2
+
+        raise RuntimeError(f"Could not initialize DB pool after {retries} attempts")
 
     async def close(self):
         if self._pool:
