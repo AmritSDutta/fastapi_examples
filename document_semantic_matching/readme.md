@@ -1,29 +1,48 @@
-Running test:
-    pytest -v
+📘 Document Semantic Matching — FastAPI + pgvector + Gemini GenAI
 
-Generating requirement.txt:
->pipreqs . --force --savepath requirements.txt
+This service performs semantic document retrieval by embedding text data using Google Gemini GenAI and storing the resulting vectors in PostgreSQL with pgvector for efficient similarity search.
 
+⚙️ Running Tests
+pytest -v
 
->docker build -t doc-semantic-matching .
+📦 Generating requirements.txt
+pipreqs . --force --savepath requirements.txt
 
-if you are running directly on windows
->docker run -d  -p 8000:8000 -e GEMINI_API_KEY=<yourkey> --name doc-semantic-matching doc-semantic-matching:latest
+🐳 Docker Build
+docker build -t doc-semantic-matching .
 
-if you are running pgvector on another docker , grab it's network, and docker name
->docker run -d --name doc-semantic-matching --network <your_pgvector_default_network> -p 8000:8000  -e GEMINI_API_KEY=<yourkey> -e DB_DSN=postgresql://user:password@<your_pgvector_docker_name>:5432/wine_review_gemini  TABLE_NAME=test_test doc-semantic-matching:latest
+🚀 Running the Container
+1️⃣ Run directly on Windows (no external pgvector)
+docker run -d \
+  -p 8000:8000 \
+  -e GEMINI_API_KEY=<yourkey> \
+  --name doc-semantic-matching \
+  doc-semantic-matching:latest
 
+2️⃣ Run with external pgvector container
 
-#### Deployment note: 1
+If your pgvector instance runs in a separate Docker container, attach the app to the same network:
 
-Architecture: Postgres with pgvector runs as its own container (pgvector-postgres-1)
-and exposes a dedicated Docker user-defined bridge network (pgvector_default).
-This isolates data plane and enables container DNS-based service discovery.
+docker run -d \
+  --name doc-semantic-matching \
+  --network <your_pgvector_default_network> \
+  -p 8000:8000 \
+  -e GEMINI_API_KEY=<yourkey> \
+  -e DB_DSN=postgresql://user:password@<your_pgvector_docker_name>:5432/wine_review_gemini \
+  -e TABLE_NAME=test_test \
+  doc-semantic-matching:latest
 
-Networking principle: Attach the app container to the same network and use the Postgres container name as the DB host
-(e.g., postgresql://user:pass@pgvector-postgres-1:5432/db). Don’t use localhost — inside containers that points to the container itself.
+🏗️ Deployment Note 1 — Network & Architecture
 
-Run pattern (example):
+Architecture: PostgreSQL (with pgvector) runs as an isolated container (pgvector-postgres-1) exposing a Docker user-defined bridge network (pgvector_default).
+
+Networking principle: The FastAPI app container attaches to the same network and connects using the Postgres container name as the hostname.
+Example DSN:
+postgresql://user:pass@pgvector-postgres-1:5432/wine_review_gemini
+
+Important: Don’t use localhost inside containers — it refers to the container itself, not the host.
+
+Example run:
 
 docker run -d \
   --name doc-semantic-matching \
@@ -33,21 +52,17 @@ docker run -d \
   doc-semantic-matching:latest
 
 
-Or declare both services in docker-compose.yml so Docker Compose wires the pgvector_default network automatically.
-Operational hygiene: verify docker network inspect pgvector_default and
-docker exec <app> nc -vz pgvector-postgres-1 5432 during smoke tests; add start-up retries
-and DSN normalization in app init to tolerate race conditions.
+Operational hygiene:
 
-Why this is recommended: user-defined bridge networks provide lightweight isolation, predictable DNS service names,
-and straightforward horizontal scaling without sacrificing portability.
+docker network inspect pgvector_default
+docker exec <app> nc -vz pgvector-postgres-1 5432
 
 
-#### Deployment note: 2
+Why:
+User-defined bridge networks provide lightweight isolation, predictable DNS resolution, and easy horizontal scaling without host port conflicts.
 
-The pgvector database runs as its own Docker container, exposing a fixed port and
-joining a user-defined network used by the application container.
-
-Example command (stand-alone)
+🐘 Deployment Note 2 — pgvector Setup
+Standalone pgvector Deployment
 docker run -d \
   --name pgvector-postgres-1 \
   --network pgvector_default \
@@ -60,8 +75,60 @@ docker run -d \
 
 Explanation
 
---name pgvector-postgres-1 → container hostname that the app uses as its DB host.
---network pgvector_default → shared network so containers discover each other by name.
--p 5432:5432 → binds PostgreSQL to the host for optional external access.
--e POSTGRES_* → initializes credentials and default database.
-ankane/pgvector:latest → official lightweight image with the pgvector extension pre-installed.
+--name pgvector-postgres-1 → hostname used by the FastAPI app.
+
+--network pgvector_default → shared Docker network for service discovery.
+
+-p 5432:5432 → exposes the database externally for admin access.
+
+-e POSTGRES_* → initializes credentials and database.
+
+ankane/pgvector:latest → official image preloaded with the pgvector extension.
+
+🔮 Deployment Note 3 — Gemini GenAI Vector Embeddings
+💡 Overview
+
+Provider: Google Cloud’s Gemini API (google-genai Python SDK)
+
+Purpose: Convert text into dense vector embeddings that capture semantic similarity.
+
+Usage: The FastAPI app uses genai.Client().models.embed_content(...) for embedding text during both ingestion and retrieval.
+
+Integration: Embeddings are stored as vector columns in PostgreSQL and queried using <=> distance metrics.
+
+🔑 Acquiring a Gemini API Key
+
+Visit Google AI Studio
+
+Click “Create API key” and copy it securely.
+
+Pass it into Docker via an environment variable:
+
+docker run -d \
+  --name doc-semantic-matching \
+  --network pgvector_default \
+  -e GEMINI_API_KEY=your_api_key_here \
+  -e DB_DSN="postgresql://user:password@pgvector-postgres-1:5432/wine_review_gemini" \
+  doc-semantic-matching:latest
+
+
+Verify API connectivity:
+
+docker exec -it doc-semantic-matching python -c \
+"import google.genai as genai; c=genai.Client(api_key='YOUR_KEY'); print([m.name for m in c.models.list()])"
+
+🧠 Notes
+
+Default embedding model: models/embedding-001 (or equivalent Gemini variant).
+
+Implement exponential backoff for ResourceExhausted (quota) errors.
+
+For production, store API keys in a secure secret store (Docker secrets, Vault, or GCP Secret Manager).
+
+✅ Summary
+Component	Description	Example Container Name	Network
+PostgreSQL + pgvector	Vector storage backend	pgvector-postgres-1	pgvector_default
+FastAPI App	Semantic search microservice	doc-semantic-matching	pgvector_default
+Gemini API	Embedding provider	External service	N/A
+
+This setup ensures reliable inter-container communication, semantic vector retrieval, and scalable deployment across environments.
