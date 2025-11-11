@@ -72,7 +72,7 @@ def _do_batch_insert():
 
         # Load CSV and subset
         pd_data = pd.read_csv(get_settings().csv_file_path, index_col=0)
-        data = pd_data.iloc[1:3].copy()
+        data = pd_data.iloc[1:6].copy()
         print(f"Total rows selected from CSV: {len(data)}")
 
         # Create target table

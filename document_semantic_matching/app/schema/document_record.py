@@ -1,3 +1,4 @@
+from typing import List
 
 from pydantic import BaseModel, constr, Field, conint
 
@@ -21,3 +22,25 @@ class DocumentRecord(BaseModel):
 
     class Config:
         extra = "forbid"
+
+
+class Topic(BaseModel):
+    name: str
+    confidence: float
+
+
+class ClassificationResult(BaseModel):
+    result: List[Topic]
+
+    @property
+    def sorted_result(self) -> List[Topic]:
+        return sorted(self.result, key=lambda t: t.confidence, reverse=True)
+
+
+class PassageRequest(BaseModel):
+    passage: str = Field(
+        ...,
+        max_length=1000,
+        min_length=1,
+        description="Input passage to classify (max 1000 characters)."
+    )
