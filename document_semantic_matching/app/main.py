@@ -19,14 +19,14 @@ port = get_settings().PORT
 
 @asynccontextmanager
 async def lifespan(app_ins: FastAPI):
-    print(f'start: {app_ins.__str__()}')
+    logging.info(f'start: {app_ins.__str__()}')
     await db.init()
     await batch_insert_async()
     try:
         yield
     finally:
         await db.close()
-        print('finish')
+        logging.info('finish')
 
 
 app = FastAPI(title=app_name, lifespan=lifespan)

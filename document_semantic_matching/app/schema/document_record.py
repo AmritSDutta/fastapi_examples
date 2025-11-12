@@ -38,9 +38,4 @@ class ClassificationResult(BaseModel):
 
 
 class PassageRequest(BaseModel):
-    passage: str = Field(
-        ...,
-        max_length=1000,
-        min_length=1,
-        description="Input passage to classify (max 1000 characters)."
-    )
+    passage: str

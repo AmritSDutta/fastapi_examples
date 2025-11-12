@@ -2,28 +2,24 @@ import logging
 import sys
 
 
-def setup_logging():
-    # Avoid reconfiguration if logging already set (e.g. by Uvicorn)
-    if logging.getLogger().handlers:
-        return
-
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
-        handlers=[
-            logging.StreamHandler(sys.stdout)
-        ]
+def setup_logging(level=logging.INFO):
+    """Initialize contextual, structured logging for the whole app."""
+    log_format = (
+        "%(asctime)s | %(levelname)-8s | %(name)s | "
+        "%(filename)s:%(lineno)d | %(funcName)s() | "
+        "PID:%(process)d | TID:%(threadName)s | %(message)s"
     )
 
-    # Fine-tune third-party loggers (optional)
-    uvicorn_logger = logging.getLogger("uvicorn")
-    uvicorn_logger.setLevel(logging.INFO)
+    logging.basicConfig(
+        level=level,
+        format=log_format,
+        datefmt="%Y-%m-%d %H:%M:%S",
+        handlers=[logging.StreamHandler(sys.stdout)],
+        force=True,
+    )
 
-    uvicorn_access_logger = logging.getLogger("uvicorn.access")
-    uvicorn_access_logger.setLevel(logging.WARNING)
+    # Suppress noisy libs
+    for noisy in ("uvicorn", "fastapi", "asyncio"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
 
-    fastapi_logger = logging.getLogger("fastapi")
-    fastapi_logger.setLevel(logging.INFO)
-
-    # Confirm setup in logs
-    logging.getLogger(__name__).info("✅ Logging initialized (level=INFO)")
+    logging.info("Global logging initialized with trace context support")

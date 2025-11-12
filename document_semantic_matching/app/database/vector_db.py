@@ -13,7 +13,7 @@ from app.schema.document_record import DocumentRecord
 logger = logging.getLogger(__name__)
 EMBED_DIM = get_settings().EMBED_DIM
 DB_DSN = get_settings().DB_DSN  # "postgres://user:password@localhost/wine_review_gemini"
-print(f'effective DB_DSN, debug step for docker based run : {DB_DSN}')
+logging.info(f'effective DB_DSN, debug step for docker based run : {DB_DSN}')
 
 
 async def get_query_embedding_async(text: str) -> List[float]:
@@ -72,7 +72,7 @@ class VectorDb:
           ORDER BY embedding <=> $1::vector
           LIMIT $2
         """
-        logging.info(sql)
+        logging.info(f'query: {sql}')
         async with self._pool.acquire() as conn:
             rows = await conn.fetch(sql, arr_literal, k)
         return [DocumentRecord(name=r['title'], description=r['description']) for r in rows]
