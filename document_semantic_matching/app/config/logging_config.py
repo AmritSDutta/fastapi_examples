@@ -6,8 +6,8 @@ def setup_logging(level=logging.INFO):
     """Initialize contextual, structured logging for the whole app."""
     log_format = (
         "%(asctime)s | %(levelname)-8s | %(name)s | "
-        "%(filename)s:%(lineno)d | %(funcName)s() | "
-        "PID:%(process)d | TID:%(threadName)s | %(message)s"
+        "%(funcName)s(): %(lineno)d | %(message)s "
+
     )
 
     logging.basicConfig(
@@ -19,7 +19,7 @@ def setup_logging(level=logging.INFO):
     )
 
     # Suppress noisy libs
-    for noisy in ("uvicorn", "fastapi", "asyncio"):
+    for noisy in ("uvicorn", "fastapi", "asyncio", "httpx"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
 
     logging.info("Global logging initialized with trace context support")

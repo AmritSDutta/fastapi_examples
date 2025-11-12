@@ -1,8 +1,12 @@
+import logging
 from typing import Optional
+
+from google.genai.types import GenerateContentResponse
 from pydantic import ValidationError
 from google import genai
 import time
 import json
+
 
 from app.schema.document_record import ClassificationResult
 
@@ -28,7 +32,7 @@ class ClassifyLLMService:
 
         while attempt <= self.max_attempts:
 
-            resp = self.client.models.generate_content(
+            resp: GenerateContentResponse = self.client.models.generate_content(
                 model=self.model,
                 contents=prompt,
                 config={
@@ -38,7 +42,7 @@ class ClassifyLLMService:
                     "max_output_tokens": 1000
                 }
             )
-
+            self._log_token_usage(resp)
             text = (resp.text or "").strip()
             last_text = text
             try:
@@ -89,3 +93,22 @@ class ClassifyLLMService:
         Return exactly one JSON object; do not add surrounding markdown or explanation.
         Return 10 high-level topics the passage most likely relates to.
         """
+
+    def _log_token_usage(self, resp):
+        """Log total token usage for a Gemini response."""
+        meta = getattr(resp, "usage_metadata", None)
+        if not meta:
+            logging.warning("[Gemini] usage_metadata not available in response")
+            return
+
+        # Try all possible total fields across SDK versions
+        total = (
+                getattr(meta, "total_token_count", None)
+                or getattr(meta, "total_tokens", None)
+                or getattr(meta, "token_count", None)
+        )
+
+        if total is not None:
+            logging.info(f"[Gemini] Total token usage: {total}")
+        else:
+            logging.info("[Gemini] total_token_count not available in response")
