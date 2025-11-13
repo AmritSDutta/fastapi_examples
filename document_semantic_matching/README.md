@@ -126,68 +126,57 @@ docker run -d   --name pgvector-postgres-1   --network pgvector_default   -e POS
 
 This setup ensures reliable inter-container communication, semantic vector retrieval, and scalable deployment across environments.
 
+---
 
+# 🧠 Matching Docs API  
+*Because even documents deserve good company.*
 
+The Matching Docs API delivers **semantic search** and **GenAI-powered text classification** through two tightly-scoped endpoints. Below is an API-first reference with high-signal examples and minimal noise.
 
-🧠 Matching Docs API
-
-“Because even documents deserve good company.”
-
-Overview
-
-The Matching Docs API helps you find, sort, and classify documents using both search and GenAI-powered classification.
-Think of it as your document concierge — polite, prompt, and mildly judgmental about malformed payloads.
-
-🚀 Base URL
+## 🚀 Base URL
 /api/docs
 
-🔍 POST /api/docs/search
+# 🔍 POST `/api/docs/search`
+Semantic retrieval for documents.
 
-Find documents that vibe with your query.
-
-🧾 Request Body
+Example Request:
+```json
 {
   "search_term": "test",
   "limit": 3
 }
+```
 
-📤 Response (200 OK)
+Example Response:
+```json
 [
   {
     "name": "lovely_wine",
     "description": "fruity aromatic wine"
   }
 ]
+```
+Behavior:
+- trims search_term
+- enforces limit ≤ 5
+- uses get_matching_docs
 
-🧠 Behavior
+Errors:
+422 limit too high
+500 Internal Server Error
 
-Trims whitespace from search_term (yes, even your accidental spacebar presses).
+# 🧩 POST `/api/docs/classify`
+GenAI-driven classification.
 
-Validates that limit ≤ 5 — because quality > quantity.
-
-Delegates to an internal matching engine (get_matching_docs), which might or might not be powered by caffeine 😅.
-
-🚫 Error Responses
-Status	Meaning	Example
-422	You got greedy with limit. Keep it ≤ 5.	{"detail": "limit too high"}
-500	Something went rogue in the service layer.	{"detail": "Internal Server Error"}
-✅ Test Coverage
-
-test_search_endpoint: Ensures happy-path search works.
-
-test_search_endpoint_failure: Ensures limit validation fails gracefully (and sarcastically).
-
-🧩 POST /api/docs/classify
-
-Let the GenAI whisperer label your passage with confidence (literally).
-Let AI tell you what your passage really means 🤖✨
-
-🧾 Request Body
+Example Request:
+```json
 {
   "passage": "A short passage"
 }
+```
 
-📤 Response (200 OK)
+Example Response:
+```json
 {
   "result": [
     {"name": "high", "confidence": 0.9},
@@ -195,16 +184,8 @@ Let AI tell you what your passage really means 🤖✨
     {"name": "low", "confidence": 0.1}
   ]
 }
+```
 
-🧠 Behavior
-
-Uses a GenAI-backed classifier to extract meaningful topics and confidence levels.
-
-Returns topics sorted by descending confidence — because order matters.
-
-Internally handled by the ever-wise llm.classify() method.
-
-🚫 Error Responses
-Status	Meaning	Example
-422	Missing or invalid passage.	{"detail": "passage is required"}
-500	GenAI model needed a coffee break.	{"detail": "classification failed"}
+# Errors:
+- 422 invalid passage
+- 500 classification failed
