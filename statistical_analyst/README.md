@@ -124,3 +124,18 @@ Think of this as your overqualified stats intern who never sleeps, never steals 
 **References**  
 - Gradio docs: https://www.gradio.app/docs  
 - Gemini / FileSearch overview: https://ai.google.dev  
+
+
+
+
+### 📌 Docker MIME Handling (Important)
+
+When running inside `python:slim` Docker images, Python’s built-in MIME database is incomplete.  
+As a result, `mimetypes.guess_type()` returns `None` for `.xlsx`, `.xls`, and `.csv`, causing Google FileSearch uploads to fail.
+
+To ensure consistent behavior across Windows, macOS, and Docker, explicitly register the missing MIME types at module import:
+
+```python
+mimetypes.add_type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".xlsx")
+mimetypes.add_type("application/vnd.ms-excel", ".xls")
+mimetypes.add_type("text/csv", ".csv")

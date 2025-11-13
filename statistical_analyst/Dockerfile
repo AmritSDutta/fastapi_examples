@@ -23,5 +23,5 @@ ENV PYTHONUNBUFFERED=1 \
 
 EXPOSE 7860
 
-# Entrypoint: launch the Gradio UI (ui.py)
-CMD ["python", "ui.py"]
+WORKDIR /app
+CMD ["python", "-m", "app.analyst_gradio_ui"]

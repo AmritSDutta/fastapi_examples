@@ -1,5 +1,6 @@
 import html
 import logging
+import mimetypes
 import os
 import tempfile
 import time
@@ -10,6 +11,16 @@ from app.config.logging_config import setup_logging
 
 setup_logging()
 _llm_client = genai.Client()
+
+
+# -----------------------
+# Docker Note: python:slim lacks MIME mappings for .xlsx/.xls/.csv, causing FileSearch uploads to fail.
+# Explicitly register these types so mimetypes.guess_type() works consistently across all platforms.
+# -----------------------------------------------------------------------------------------
+mimetypes.add_type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".xlsx")
+mimetypes.add_type("application/vnd.ms-excel", ".xls")
+mimetypes.add_type("text/csv", ".csv")
+# -----------------------------------------------------------------------------------------
 
 SYSTEM_PROMPT = """
 You are an expert statistical analysis assistant.
@@ -82,10 +93,12 @@ def create_store_and_upload(uploaded_files, display_name_prefix="upload-dir"):
     logging.info("-" * 100)
     safe_delete()
     logging.info('Creating file store and uploading files ...')
+
     store = safe_call(_llm_client.file_search_stores.create, config={"display_name": display_name_prefix})
     for f in uploaded_files:
         local_path = f.name
-        display = os.path.basename(local_path)
+        display = getattr(f, "filename", None) or os.path.basename(local_path)
+        logging.info(f"local_path={local_path}, display={display}")
         op = safe_call(_llm_client.file_search_stores.upload_to_file_search_store,
                        file=local_path,
                        file_search_store_name=store.name,
