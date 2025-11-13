@@ -1,4 +1,3 @@
-# analyst_gradio_ui.py — Gradio UI, converts agent primitives -> gr.update(...)
 import gradio as gr
 import logging
 
@@ -80,7 +79,7 @@ with gr.Blocks() as demo:
             gr.update(interactive=send_btn_i),  # send_btn
             gr.update(interactive=btn_upload_i),  # btn_upload
             gr.update(interactive=btn_close_i),  # btn_close
-            gr.update(value=chatbox_v),  # chatbox
+            gr.update(value=chatbox_v),  # chat_box
             status,  # out_text (plain string ok)
             state_chat_v,  # state_chat
             state_store_v,  # state_store
