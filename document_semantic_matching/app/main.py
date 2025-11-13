@@ -1,4 +1,5 @@
 import logging
+import subprocess
 from contextlib import asynccontextmanager
 
 import uvicorn
@@ -17,9 +18,14 @@ app_name = get_settings().APP_NAME
 port = get_settings().PORT
 
 
+def _verify_tests_pass():
+    subprocess.run(["pytest", "-q"], check=True)
+
+
 @asynccontextmanager
 async def lifespan(app_ins: FastAPI):
     logging.info(f'start: {app_ins.__str__()}')
+    _verify_tests_pass()
     await db.init()
     await batch_insert_async()
     try:
