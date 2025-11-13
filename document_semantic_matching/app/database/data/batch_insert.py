@@ -5,8 +5,8 @@ import time
 import numpy as np
 import pandas as pd
 import psycopg2
-from psycopg2.extras import execute_values
 from pgvector.psycopg2 import register_vector
+from psycopg2.extras import execute_values
 
 from app.config.Settings import get_settings
 from app.database.custom_embedding import get_gemini_embedding

@@ -1,9 +1,9 @@
 import asyncio
+import logging
 from typing import List
 from urllib.parse import urlparse
 
 import asyncpg
-import logging
 import numpy as np
 
 from app.config.Settings import get_settings

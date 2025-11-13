@@ -1,4 +1,5 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import APIRouter
+
 from app.routers import matching_doc_router
 
 router = APIRouter()

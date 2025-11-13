@@ -1,15 +1,14 @@
 import logging
 from typing import List
 
-import google
 from fastapi import APIRouter, Depends, HTTPException, Body
 
 from app.database.document_repository import DocumentRepository
 from app.database.vector_db import VectorDb, get_db
 from app.routers.request_validator import sanitize_passage
-from app.schema.document_record import DocumentRecord, SearchRequest, PassageRequest, ClassificationResult
-from app.service.llm_classifier import ClassifyLLMService
+from app.schema.document_record import DocumentRecord, SearchRequest, ClassificationResult
 from app.service.document_service import DocumentService
+from app.service.llm_classifier import ClassifyLLMService
 
 logger = logging.getLogger(__name__)
 doc_router = APIRouter(prefix="/docs", tags=["docs"])

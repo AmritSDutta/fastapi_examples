@@ -1,12 +1,11 @@
+import json
 import logging
+import time
 from typing import Optional
 
+from google import genai
 from google.genai.types import GenerateContentResponse
 from pydantic import ValidationError
-from google import genai
-import time
-import json
-
 
 from app.schema.document_record import ClassificationResult
 

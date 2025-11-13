@@ -1,4 +1,6 @@
-import re, html
+import html
+import re
+
 from fastapi import HTTPException
 
 MALICIOUS_PATTERNS = [

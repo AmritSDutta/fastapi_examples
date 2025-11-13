@@ -1,7 +1,9 @@
 import json
 import logging
 import time
+
 from google import genai
+
 from app.config.Settings import get_settings
 
 
