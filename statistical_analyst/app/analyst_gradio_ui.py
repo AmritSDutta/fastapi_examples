@@ -2,6 +2,10 @@ import gradio as gr
 import logging
 
 from app.agents.analyst_agent import upload_and_start, safe_call, close_and_cleanup
+from env_loader import load_env
+
+config = load_env()
+MODEL_NAME = config["MODEL_NAME"]
 
 USER_AVATAR = "👤"
 ASSISTANT_AVATAR = "🤖"
@@ -26,7 +30,7 @@ with gr.Blocks() as demo:
 
     def on_upload(files):
         # agent.upload_and_start returns plain (msg, chat_obj, store_name)
-        msg, chat_obj, store_name = upload_and_start(files)
+        msg, chat_obj, store_name = upload_and_start(files, MODEL_NAME)
         send_btn_update = gr.update(interactive=True) if chat_obj else gr.update(interactive=False)
         # return values: out_text, state_chat, state_store, state_messages, send_btn
         logging.info(f'Files uploaded')

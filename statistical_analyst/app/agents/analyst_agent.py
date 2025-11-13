@@ -4,14 +4,11 @@ import os
 import tempfile
 import time
 from datetime import datetime
-
 from google import genai
 from google.genai import types
-
 from app.config.logging_config import setup_logging
 
 setup_logging()
-
 _llm_client = genai.Client()
 
 SYSTEM_PROMPT = """
@@ -114,15 +111,15 @@ def start_chat_with_store(store_name, model="gemini-2.5-flash"):
     return chat
 
 
-def upload_and_start(files):
+def upload_and_start(files, model_name: str = 'gemini-2.5-flash'):
     """Uploads files, creates store and chat. Returns (status_msg, chat_obj, store_name)."""
     if not files:
         return "No files uploaded.", None, None
     try:
-        store = create_store_and_upload(files)
+        store = create_store_and_upload(files, model_name)
     except Exception as e:
         return f"Upload failed: {e}", None, None
-    chat = start_chat_with_store(store.name)
+    chat = start_chat_with_store(store.name, model_name)
     return f"Uploaded {len(files)} files to {store.name}. Chat ready.", chat, store.name
 
 
