@@ -189,3 +189,92 @@ Example Response:
 # Errors:
 - 422 invalid passage
 - 500 classification failed
+
+
+
+### 📌 Example: Testing `/api/docs/classify` With a Complex Passage
+
+## ▶️ Python Example
+
+```python
+import json
+import requests
+
+
+def _get_messy_text():
+    return """This is a test passage:
+        - with "quotes"
+        - with emojis 😃🔥
+        - with unicode অ आ あ
+        - with JSON-like {bad: 'json'}
+        - with newlines and \t tabs
+
+        - def __init__(self, base_url: str):
+            self.endpoint = f"{base_url}/classify"
+            self.headers = {"Content-Type": "application/json"}
+
+        - 😃🔥✨🚀📚🧠💡🔍🎯⚡📝🤖🌟💭🪄
+        - এটা একটা সুন্দর বাংলা বাক্য, যা এক লাইনে আপনার জন্য লেখা হলো।
+        """
+
+
+if __name__ == "__main__":
+    url = "http://localhost:8000/api/docs/classify"
+    messy_text = _get_messy_text()
+
+    payload = (json.dumps(
+        {"passage": messy_text},
+        ensure_ascii=False
+    ).encode("utf-8"))
+
+    r = requests.post(url,
+                      data=payload,
+                      headers={"Content-Type": "application/json"}
+                      )
+    r.raise_for_status()
+    print(json.dumps(r.json(), indent=2, ensure_ascii=False))
+```
+
+---
+
+## 📤 Sample Output
+
+```json
+{
+  "result": [
+    {"name": "Programming", "confidence": 0.95},
+    {"name": "Python", "confidence": 0.9},
+    {"name": "Web Development", "confidence": 0.75},
+    {"name": "APIs", "confidence": 0.7},
+    {"name": "Data Science", "confidence": 0.65},
+    {"name": "Natural Language Processing", "confidence": 0.6},
+    {"name": "Unicode", "confidence": 0.55},
+    {"name": "Internationalization", "confidence": 0.5},
+    {"name": "Emojis", "confidence": 0.45},
+    {"name": "Text Processing", "confidence": 0.4},
+    {"name": "Bengali Language", "confidence": 0.35},
+    {"name": "JSON", "confidence": 0.3}
+  ]
+}
+
+```
+
+---
+
+## 🟦 cURL Example
+
+```bash
+curl -X POST "http://localhost:8000/api/docs/classify"   -H "Content-Type: application/json"   --data "$(printf '%s' "{\"passage\": \"This is a test passage with emojis 😃🔥 and unicode অ आ あ\"}")"
+```
+
+## 🟧 Postman Snippet
+
+**Method:** POST  
+**URL:** http://localhost:8000/api/docs/classify  
+**Headers:** Content-Type: application/json
+
+```json
+{
+  "passage": "This is a test passage with emojis 😃🔥 and unicode অ आ あ"
+}
+```

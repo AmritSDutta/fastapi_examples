@@ -15,7 +15,7 @@ class ClassifyLLMService:
     Service class for calling Gemini model.
     """
 
-    def __init__(self, model: str = "gemini-2.5-flash", max_attempts: int = 3, backoff: float = 0.5):
+    def __init__(self, model: str = "gemini-2.5-flash-lite", max_attempts: int = 3, backoff: float = 0.5):
         self.client = genai.Client()
         self.model = model
         self.max_attempts = max_attempts
@@ -24,7 +24,7 @@ class ClassifyLLMService:
 
     def classify(self, passage: str) -> ClassificationResult:
         prompt = self._build_base_prompt(passage)
-
+        logging.info(f'Model in use : {self.model}')
         attempt = 1
         last_text: Optional[str] = None
         last_exc: Optional[Exception] = None
