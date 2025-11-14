@@ -30,7 +30,7 @@ with gr.Blocks() as demo:
 
     def on_upload(files):
         # agent.upload_and_start returns plain (msg, chat_obj, store_name)
-        msg, chat_obj, store_name = upload_and_start(files, MODEL_NAME)
+        msg, chat_obj, store_name, _ = upload_and_start(files, MODEL_NAME)
         send_btn_update = gr.update(interactive=True) if chat_obj else gr.update(interactive=False)
         # return values: out_text, state_chat, state_store, state_messages, send_btn
         logging.info(f'Files uploaded')

@@ -2,10 +2,12 @@ import gradio as gr
 import logging
 
 from app.agents.analyst_agent import upload_and_start, safe_call, close_and_cleanup
+from app.agents.data_models import ValidatorResponse
 from env_loader import load_env
 
 config = load_env()
 MODEL_NAME = config["MODEL_NAME"]
+CHAT_INPUT_VALIDATION_REQUIRED: bool = config["CHAT_INPUT_VALIDATION_REQUIRED"]
 ALLOWED_FILE_TYPES = {".xlsx", ".xls", ".csv"}
 DEFAULT_HINT = "Ask about the uploaded files..."
 
@@ -50,6 +52,7 @@ with gr.Blocks() as demo:
     state_chat = gr.State(None)  # stores chat object
     state_store = gr.State(None)  # stores file search store name
     state_messages = gr.State([])  # conversation history
+    val_chat = gr.State(None)  # stores chat object
 
 
     def on_upload(files):
@@ -57,18 +60,18 @@ with gr.Blocks() as demo:
         if not ok:
             logging.warning(msg)
             return msg, None, None, [], gr.update(interactive=False)
-        msg, chat_obj, store_name = upload_and_start(files, MODEL_NAME)
+        msg, chat_obj, store_name, validator_agent = upload_and_start(files, MODEL_NAME)
         send_btn_update = gr.update(interactive=True) if chat_obj else gr.update(interactive=False)
         logging.info('Files uploaded')
         # outputs: out_text, state_chat, state_store, state_messages, send_btn
-        return msg, chat_obj, store_name, [], send_btn_update
+        return msg, chat_obj, store_name, [], send_btn_update, validator_agent
 
 
     btn_upload.click(on_upload, inputs=[uploader],
-                     outputs=[out_text, state_chat, state_store, state_messages, send_btn])
+                     outputs=[out_text, state_chat, state_store, state_messages, send_btn, val_chat])
 
 
-    def send_message(user_q, chat_obj, messages):
+    def send_message(user_q, chat_obj, messages, val_obj):
         logging.info("-" * 100)
         if not chat_obj:
             return gr.update(), "No active chat. Upload files first.", messages
@@ -79,9 +82,17 @@ with gr.Blocks() as demo:
         # append user message to local messages
         messages = (messages or []) + [{"role": "user", "content": user_q, "avatar": USER_AVATAR, "name": "You"}]
         try:
-            resp = safe_call(chat_obj.send_message, user_q)
-            text = getattr(resp, "text", str(resp))
-            logging.info(f'response snippet: {text[:100]}')
+            val_json = safe_call(val_obj.send_message, user_q)
+            validation_result: ValidatorResponse = _parse_validator_json(val_json)
+            if validation_result.isStatisticalQuery:
+                logging.warning(f'validation fine :  {validation_result.isStatisticalQuery}')
+                resp = safe_call(chat_obj.send_message, user_q)
+                text = getattr(resp, "text", str(resp))
+                logging.info(f'response snippet: {text[:100]}')
+            else:
+                text = validation_result.reason
+                logging.warning(f'response snippet: {text}')
+
         except Exception as e:
             text = f"ERROR: {e}"
         messages += [{"role": "assistant", "content": text, "avatar": ASSISTANT_AVATAR, "name": "Analyst"}]
@@ -90,7 +101,7 @@ with gr.Blocks() as demo:
         return gr.update(value=messages), "", messages, gr.update(value='')
 
 
-    send_btn.click(send_message, inputs=[user_msg, state_chat, state_messages],
+    send_btn.click(send_message, inputs=[user_msg, state_chat, state_messages, val_chat],
                    outputs=[chat_box, out_text, state_messages, user_msg])
 
 
@@ -158,6 +169,24 @@ def _normalize_and_validate(files, allowed=None):
         msg = f"Rejected files (unsupported): {', '.join(bad)}. Allowed: {', '.join(sorted(allowed))}"
         return False, msg, []
     return True, "OK", normalized
+
+
+def _parse_validator_json(val_json: str) -> ValidatorResponse:
+    if CHAT_INPUT_VALIDATION_REQUIRED:
+        val_text = getattr(val_json, "text", str(val_json))
+        try:
+
+            logging.info(f'input validator LLM response : {val_text}')
+            response = ValidatorResponse.model_validate_json(val_text)
+            return response
+        except Exception as exc:
+            logging.warning(f'input validator LLM wrong response : {val_text}, {exc}')
+
+    return ValidatorResponse(
+        isStatisticalQuery=True,
+        confidence=1.0,
+        reason=f"Bypassed chat input validation"
+    )
 
 
 if __name__ == "__main__":
