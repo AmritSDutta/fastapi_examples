@@ -24,4 +24,4 @@ ENV PYTHONUNBUFFERED=1 \
 EXPOSE 7860
 
 WORKDIR /app
-CMD ["python", "-m", "app.analyst_gradio_ui"]
+CMD ["python", "-m", "app.update_ui"]

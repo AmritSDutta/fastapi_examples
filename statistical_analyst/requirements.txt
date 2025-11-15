@@ -1,0 +1,6 @@
+gradio==5.31.0
+protobuf==6.33.0
+python-dotenv==1.1.0
+google-genai==1.49.0
+pydantic~=2.11.5
+attrs~=24.3.0
