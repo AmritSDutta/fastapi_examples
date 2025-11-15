@@ -59,7 +59,7 @@ with gr.Blocks() as demo:
         ok, msg, norm_files = _normalize_and_validate(files)
         if not ok:
             logging.warning(msg)
-            return msg, None, None, [], gr.update(interactive=False)
+            return msg, None, None, [], gr.update(interactive=False), None
         msg, chat_obj, store_name, validator_agent = upload_and_start(files, MODEL_NAME)
         send_btn_update = gr.update(interactive=True) if chat_obj else gr.update(interactive=False)
         logging.info('Files uploaded')
@@ -164,9 +164,9 @@ def _normalize_and_validate(files, allowed=None):
         name = getattr(f, "name", None) or (f.get("name") if isinstance(f, dict) else str(f))
         names.append(name)
         normalized.append(f)
-    bad = [n for n in names if not any(n.lower().endswith(ext) for ext in allowed)]
+    bad = [f'{n[:3]}...{n[-5:]}' for n in names if not any(n.lower().endswith(ext) for ext in allowed)]
     if bad:
-        msg = f"Rejected files (unsupported): {', '.join(bad)}. Allowed: {', '.join(sorted(allowed))}"
+        msg = f"Rejected: only Allowed: {', '.join(sorted(allowed))},  uploaded files (unsupported): {', '.join(bad)}. "
         return False, msg, []
     return True, "OK", normalized
 
