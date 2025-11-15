@@ -2,6 +2,7 @@ import html
 import logging
 import mimetypes
 import os
+import re
 import tempfile
 import time
 from datetime import datetime
@@ -9,9 +10,12 @@ from typing import List
 
 from google import genai
 from google.genai import types
+from google.genai.types import FileSearchStore
+from typing_extensions import deprecated
 
 from app.agents.data_models import ValidatorResponse
 from app.config.logging_config import setup_logging
+from app.data_sanity.data_sanity import analyze_columns
 from env_loader import load_env
 
 setup_logging()
@@ -32,7 +36,7 @@ mimetypes.add_type("text/csv", ".csv")
 
 SYSTEM_PROMPT = f"""
 You are an expert statistical analysis assistant.
-Filestore has XLSX files containing quantitative data and expects accurate, succinct
+Filestore has XLSX, XLS, or CSV files containing quantitative data and expects accurate, succinct
 professional-grade statistical insights.
 
 Your role:
@@ -46,11 +50,13 @@ Your role:
 - Add a small not to specify which tools and method you used to come up to the solution.
 - use tabular format to answer if it is necessary and it is concise.
 - only provide explanation briefly if asked with reference.
+- you should be able to do tokenization, stop-word removal, and vectorization of text data , if asked.
+- you are well versed with spacy, nltk, pandas, sklearn , stats model
 
 constraint:
 - you can not do any mathematical or statistical error or judgement.
 - you will always pick right methodologies, tools for depending on specific questions.
-- Must include not more than 150 words to mention tools, methods used for getting the response.
+- Must include not more than 200 words to mention tools, methods used for getting the response, how to do it in python.
 
 Always assume the dataset is already present in the FileSearch store.
 Your output must be concise, technically correct, and quantitatively validated.
@@ -145,7 +151,7 @@ def safe_call(func, *args, **kwargs):
 def safe_delete():
     """Delete existing file_search stores (retries on transient errors)."""
     logging.info("-" * 100)
-    logging.info('Started cleaning up stale uploaded files ...')
+    logging.info('Started cleaning up stale uploaded file stores ...')
     for attempt in (1, 2):
         try:
             for file_search_store in _llm_client.file_search_stores.list():
@@ -161,20 +167,53 @@ def safe_delete():
                 if attempt == 1:
                     time.sleep(60)
                     continue
-            logging.error("Error calling safe_delete: %s", s)
+            logging.error("Error calling safe_delete file stores: %s", s)
             raise
 
 
-def create_store_and_upload(uploaded_files, display_name_prefix="upload-dir"):
+def safe_delete_files():
+    """Delete existing files (retries on transient errors)."""
+    logging.info("-" * 100)
+    logging.info('Started cleaning up stale uploaded files ...')
+    for attempt in (1, 2):
+        try:
+            for file in _llm_client.files.list():
+                logging.info(f"Stale file: {file}")
+                _llm_client.files.delete(name=file.name)
+
+            logging.info("-" * 100)
+            return True
+        except Exception as e:
+            s = str(e)
+            if ("429" in s) or ("503" in s) or getattr(e, "status_code", None) in (429, 503):
+                logging.warning("Transient API error (attempt %d): %s", attempt, s)
+                if attempt == 1:
+                    time.sleep(60)
+                    continue
+            logging.error("Error calling safe_delete_files: %s", s)
+            raise
+
+
+def _sanitize_resource_name(name: str) -> str:
+    # keep lowercase alnum + dashes, convert others to dash, collapse, strip edges
+    s = re.sub(r'[^a-z0-9-]', '-', name.lower())
+    s = re.sub(r'-{2,}', '-', s).strip('-')
+    return s or f'file-{int(time.time())}'
+
+
+@deprecated("Use create_store_and_upload(..) instead")
+def create_store_and_upload_old(uploaded_files, display_name_prefix="upload-dir"):
     """Create a file_search store and upload files. Returns store object."""
     global _FILES_UPLOADED
     logging.info("-" * 100)
     safe_delete()
+    safe_delete_files()
     logging.info('Creating file store and uploading files ...')
+    _FILES_UPLOADED = uploaded_files
 
     store = safe_call(_llm_client.file_search_stores.create, config={"display_name": display_name_prefix})
     for f in uploaded_files:
-        _FILES_UPLOADED = uploaded_files
+        analyze_columns(f)
         local_path = f.name
         display = getattr(f, "filename", None) or os.path.basename(local_path)
         logging.info(f"local_path={local_path}, display={display}")
@@ -184,7 +223,60 @@ def create_store_and_upload(uploaded_files, display_name_prefix="upload-dir"):
                        config={"display_name": display})
         # wait until import completes (poll)
         while not safe_call(lambda o: _llm_client.operations.get(o), op).done:
-            time.sleep(2)
+            logging.info('waiting for uploading files ...')
+            time.sleep(10)
+    logging.info("-" * 100)
+    return store
+
+
+def create_store_and_upload(uploaded_files, display_name_prefix="upload-dir"):
+    logging.info("-" * 100)
+    safe_delete()
+    safe_delete_files()
+    logging.info("Creating file search store...")
+    store: FileSearchStore | None = None
+    for attempt in (1, 2):
+        try:
+            store = _llm_client.file_search_stores.create(config={"display_name": display_name_prefix})
+
+            for f in uploaded_files:
+                # derive a local path / name (compatible with file-like or path-like inputs)
+                local_path = f.name  # getattr(f, "name", None) or getattr(f, "filename", None) or str(f)
+                display = getattr(f, "filename", None) or os.path.basename(local_path)
+
+                # run local analysis (assumes analyze_columns accepts a filepath)
+                try:
+                    analyze_columns(local_path)
+                except Exception:
+                    logging.exception("analyze_columns failed for %s", local_path)
+
+                base = f'{os.path.splitext(display)[0]}{attempt}'
+                base_sanitized = _sanitize_resource_name(base)
+                logging.info("Uploading %s, name as %s", local_path, base)
+                uploaded = _llm_client.files.upload(file=local_path, config={"name": base_sanitized})
+
+                logging.info("Importing %s into file search store %s", uploaded.name, store.name)
+                op = _llm_client.file_search_stores.import_file(
+                    file_search_store_name=store.name,
+                    file_name=uploaded.name
+                )
+
+                # poll until import completes
+                while not op.done:
+                    logging.info("waiting for import to complete for %s ...", uploaded.name)
+                    time.sleep(5)
+                    op = _llm_client.operations.get(op)
+        except Exception as e:
+            s = str(e)
+            if ("429" in s) or ("503" in s) or getattr(e, "status_code", None) in (429, 503):
+                logging.warning("Transient API error (attempt %d): %s", attempt, s)
+                if attempt == 1:
+                    time.sleep(60)
+                    continue
+            logging.warning("Gemini API error (attempt %d): %s", attempt, s)
+            logging.error(f"Error calling : upload file to file store", e)
+            raise
+
     logging.info("-" * 100)
     return store
 
@@ -231,6 +323,7 @@ def close_and_cleanup(messages):
     logging.info('cleaning up chat session..')
     try:
         safe_delete()
+        safe_delete_files()
         status = "Session closed. Cleanup attempted."
     except Exception as e:
         logging.exception("safe_delete failed")
