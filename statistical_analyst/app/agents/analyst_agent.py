@@ -141,7 +141,7 @@ def safe_call(func, *args, **kwargs):
             if ("429" in s) or ("503" in s) or getattr(e, "status_code", None) in (429, 503):
                 logging.warning("Transient API error (attempt %d): %s", attempt, s)
                 if attempt == 1:
-                    time.sleep(60)
+                    time.sleep(15)
                     continue
             logging.warning("Gemini API error (attempt %d): %s", attempt, s)
             logging.error(f"Error calling : {getattr(func, "__name__", "<call>")}", e)
@@ -258,7 +258,8 @@ def create_store_and_upload(uploaded_files, display_name_prefix="upload-dir"):
                 logging.info("Importing %s into file search store %s", uploaded.name, store.name)
                 op = _llm_client.file_search_stores.import_file(
                     file_search_store_name=store.name,
-                    file_name=uploaded.name
+                    file_name=uploaded.name,
+
                 )
 
                 # poll until import completes
