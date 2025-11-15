@@ -139,3 +139,15 @@ To ensure consistent behavior across Windows, macOS, and Docker, explicitly regi
 mimetypes.add_type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".xlsx")
 mimetypes.add_type("application/vnd.ms-excel", ".xls")
 mimetypes.add_type("text/csv", ".csv")
+```
+
+### 📌 User UI Guide — Multi-file Statistical Analysis Agent
+
+1. **Drop files**: Drag or click the large left panel to upload XLSX/CSV/TXT. (Marker 1)
+2. **Upload & Start Chat**: Press the button to ingest files and open the chat session. (Marker 2)
+3. **Check the Status**: Monitor the status box for processing updates and readiness. (Marker 3)
+4. **Enter Queries**: Type questions about the uploaded data in the textbox. Use natural language. (Marker 4)
+5. **Send**: Press the Send button to submit your query and get responses. (Marker 5)
+6. **Close Chat**: When done, press Close Chat to end the session and clear state. (Marker 6)
+
+![UI Guide](./Statistical_analyst_annotated_v2.png)
