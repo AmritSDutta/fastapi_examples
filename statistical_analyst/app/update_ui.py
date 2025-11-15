@@ -63,6 +63,7 @@ with gr.Blocks() as demo:
         msg, chat_obj, store_name, validator_agent = upload_and_start(files, MODEL_NAME)
         send_btn_update = gr.update(interactive=True) if chat_obj else gr.update(interactive=False)
         logging.info('Files uploaded')
+        send_message("Hi", chat_obj, [], validator_agent)
         # outputs: out_text, state_chat, state_store, state_messages, send_btn
         return msg, chat_obj, store_name, [], send_btn_update, validator_agent
 

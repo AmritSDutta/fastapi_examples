@@ -5,6 +5,8 @@ import os
 import tempfile
 import time
 from datetime import datetime
+from typing import List
+
 from google import genai
 from google.genai import types
 
@@ -17,7 +19,7 @@ _llm_client = genai.Client()
 config = load_env()
 MODEL_NAME = config["MODEL_NAME"]
 INPUT_VALIDATION_MODEL_NAME = config["INPUT_VALIDATION_MODEL"]
-
+_FILES_UPLOADED: List[str] = []
 
 # -----------------------
 # Docker Note: python:slim lacks MIME mappings for .xlsx/.xls/.csv, causing FileSearch uploads to fail.
@@ -28,7 +30,7 @@ mimetypes.add_type("application/vnd.ms-excel", ".xls")
 mimetypes.add_type("text/csv", ".csv")
 # -----------------------------------------------------------------------------------------
 
-SYSTEM_PROMPT = """
+SYSTEM_PROMPT = f"""
 You are an expert statistical analysis assistant.
 Filestore has XLSX files containing quantitative data and expects accurate, succinct
 professional-grade statistical insights.
@@ -52,6 +54,8 @@ constraint:
 
 Always assume the dataset is already present in the FileSearch store.
 Your output must be concise, technically correct, and quantitatively validated.
+you should have access to following files from FileStore:
+{_FILES_UPLOADED}
 """
 
 VALIDATOR_SYSTEM_PROMPT = """
@@ -133,7 +137,8 @@ def safe_call(func, *args, **kwargs):
                 if attempt == 1:
                     time.sleep(60)
                     continue
-            logging.error("Error calling %s: %s", getattr(func, "__name__", "<call>"), s)
+            logging.warning("Gemini API error (attempt %d): %s", attempt, s)
+            logging.error(f"Error calling : {getattr(func, "__name__", "<call>")}", e)
             raise
 
 
@@ -162,12 +167,14 @@ def safe_delete():
 
 def create_store_and_upload(uploaded_files, display_name_prefix="upload-dir"):
     """Create a file_search store and upload files. Returns store object."""
+    global _FILES_UPLOADED
     logging.info("-" * 100)
     safe_delete()
     logging.info('Creating file store and uploading files ...')
 
     store = safe_call(_llm_client.file_search_stores.create, config={"display_name": display_name_prefix})
     for f in uploaded_files:
+        _FILES_UPLOADED = uploaded_files
         local_path = f.name
         display = getattr(f, "filename", None) or os.path.basename(local_path)
         logging.info(f"local_path={local_path}, display={display}")
@@ -206,11 +213,11 @@ def start_chat_with_store(store_name, model="gemini-2.5-flash"):
 def upload_and_start(files, model_name: str = 'gemini-2.5-flash'):
     """Uploads files, creates store and chat. Returns (status_msg, chat_obj, store_name)."""
     if not files:
-        return "No files uploaded.", None, None
+        return "No files uploaded.", None, None, None
     try:
         store = create_store_and_upload(files, model_name)
     except Exception as e:
-        return f"Upload failed: {e}", None, None
+        return f"Upload failed: {e}", None, None, None
     chat_agent, validator_agent = start_chat_with_store(store.name, model_name)
     return f"Uploaded {len(files)} files to {store.name}. Chat ready.", chat_agent, store.name, validator_agent
 
