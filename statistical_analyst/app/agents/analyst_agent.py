@@ -147,7 +147,8 @@ def safe_call(func, *args, **kwargs):
                     time.sleep(15)
                     continue
             logging.warning("Gemini API error (attempt %d): %s", attempt, s)
-            logging.error(f"Error calling : {getattr(func, "__name__", "<call>")}", e)
+            function_details = getattr(func, "__name__", "<call>")
+            logging.error(f"Error calling : {function_details}", e)
             raise
 
 
