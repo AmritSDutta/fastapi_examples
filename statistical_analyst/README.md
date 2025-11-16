@@ -151,3 +151,27 @@ mimetypes.add_type("text/csv", ".csv")
 6. **Close Chat**: When done, press Close Chat to end the session and clear state. (Marker 6)
 
 ![UI Guide](./Statistical_analyst_annotated_v2.png)
+
+
+
+## 🚩 Redflags ⚠️🐍
+
+A quick reality check before you ship something “production-grade” and then wonder why everything is on fire. 🔥😅
+
+### 1. CSV Embeddings… or “Will It Blend?” 🧪📉  
+The GenAI embedding layer occasionally face-plants on perfectly normal `.csv` files — the same ones Pandas, Excel, and even Notepad handle without drama.  
+Typical response from the API?  
+```
+503 UNAVAILABLE — Failed to count tokens.
+```  
+Yes, it literally can’t count. Not ideal for a system meant to *understand data*. 🫠
+
+### 2. Mysterious Shape-Shifting Data 🪄📊  
+After ingestion, row/column counts sometimes mutate like a Marvel character mid-origin story.  
+Why? Internal “optimizations”™ that nobody asked for and nobody can see.  
+Implications:  
+- 🚫 No guarantee of row/column fidelity  
+- 🤷 Great for semantic vibes  
+- ❌ Terrible for precise reporting, audits, or anything requiring, you know… accuracy  
+
+Use this layer for **approximate insights**, not **exact truth** — unless you're okay with surprises. 🎁😄
