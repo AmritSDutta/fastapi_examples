@@ -5,7 +5,7 @@ import pandas as pd
 from pandas.api.types import infer_dtype
 
 
-def analyze_columns(src):
+def analyze_columns(src: str):
     try:
         df = (
             pd.read_excel(src)

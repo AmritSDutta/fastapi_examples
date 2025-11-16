@@ -1,3 +1,6 @@
+import os
+from typing import List
+
 import gradio as gr
 import logging
 
@@ -62,8 +65,10 @@ with gr.Blocks() as demo:
             return msg, None, None, [], gr.update(interactive=False), None
         msg, chat_obj, store_name, validator_agent = upload_and_start(files, MODEL_NAME)
         send_btn_update = gr.update(interactive=True) if chat_obj else gr.update(interactive=False)
-        logging.info('Files uploaded')
-        send_message("Hi", chat_obj, [], validator_agent)
+        local_files_names: List[str] = [os.path.splitext(os.path.basename(local_path))[0] for local_path in files]
+        logging.info(f'Files uploaded: {local_files_names}')
+        send_message(f"Hi, do you access to files, named like {local_files_names}?what is the shape of the data ?",
+                     chat_obj, [], validator_agent)
         # outputs: out_text, state_chat, state_store, state_messages, send_btn
         return msg, chat_obj, store_name, [], send_btn_update, validator_agent
 
@@ -82,6 +87,7 @@ with gr.Blocks() as demo:
         logging.info(f'user query passed: {user_q}')
         # append user message to local messages
         messages = (messages or []) + [{"role": "user", "content": user_q, "avatar": USER_AVATAR, "name": "You"}]
+        text: str | None = None
         try:
             val_json = safe_call(val_obj.send_message, user_q)
             validation_result: ValidatorResponse = _parse_validator_json(val_json)
@@ -89,13 +95,15 @@ with gr.Blocks() as demo:
                 logging.warning(f'validation fine :  {validation_result.isStatisticalQuery}')
                 resp = safe_call(chat_obj.send_message, user_q)
                 text = getattr(resp, "text", str(resp))
-                logging.info(f'response snippet: {text[:100]}')
+                logging.info(f'response snippet: {text[:100] if text else "text is None"}')
             else:
                 text = validation_result.reason
                 logging.warning(f'response snippet: {text}')
 
         except Exception as e:
-            text = f"ERROR: {e}"
+            logging.error('error happened during conversation with LLM', e)
+
+        text = "I did not get your question, can you please reframe it ?" if not text else text
         messages += [{"role": "assistant", "content": text, "avatar": ASSISTANT_AVATAR, "name": "Analyst"}]
         logging.info("-" * 100)
         # outputs: chat_box, out_text, state_messages

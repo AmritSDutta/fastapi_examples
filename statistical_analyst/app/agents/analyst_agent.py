@@ -6,6 +6,7 @@ import re
 import tempfile
 import time
 from datetime import datetime
+from io import BytesIO
 from typing import List
 
 from google import genai
@@ -16,6 +17,7 @@ from typing_extensions import deprecated
 from app.agents.data_models import ValidatorResponse
 from app.config.logging_config import setup_logging
 from app.data_sanity.data_sanity import analyze_columns
+from app.data_sanity.preprocess_files import preprocess_file
 from env_loader import load_env
 
 setup_logging()
@@ -41,6 +43,7 @@ professional-grade statistical insights.
 
 Your role:
 - Perform detailed statistical analysis on the uploaded datasets.
+- never misreport on number of rows and columns.
 - Derive and verify all calculations with precision — no estimation or rounding errors.
 - Respond succinctly and analytically, avoiding verbosity or narrative explanations.
 - Present numeric outputs, correlations, and inferences clearly, with minimal text.
@@ -56,9 +59,10 @@ Your role:
 constraint:
 - you can not do any mathematical or statistical error or judgement.
 - you will always pick right methodologies, tools for depending on specific questions.
-- Must include not more than 200 words to mention tools, methods used for getting the response, how to do it in python.
+- Must include not more than 250 words to mention tools, methods used for getting the response, how to do it in python.
 
 Always assume the dataset is already present in the FileSearch store.
+never misreport on number of rows and columns.
 Your output must be concise, technically correct, and quantitatively validated.
 you should have access to following files from FileStore:
 {_FILES_UPLOADED}
@@ -155,8 +159,50 @@ def safe_delete():
     for attempt in (1, 2):
         try:
             for file_search_store in _llm_client.file_search_stores.list():
-                logging.info(f"Stale file_search_store: {file_search_store}")
+                logging.info(f"Stale file_search_store: {file_search_store.name}, {file_search_store.display_name}")
+                logging.info(f"Stale file_search_store docs count: {file_search_store.active_documents_count}")
+                logging.info(f"Stale file_search_store size: {file_search_store.size_bytes}")
+                while True:
+                    response = _llm_client.file_search_stores.documents.list(
+                        parent=file_search_store.name,
+                    )
+                    for doc in response:
+                        logging.info(f'{doc.name}, {doc.display_name}, {doc.create_time}')
+                    break
+
                 _llm_client.file_search_stores.delete(name=file_search_store.name, config={'force': True})
+
+            logging.info("-" * 100)
+            return True
+        except Exception as e:
+            s = str(e)
+            if ("429" in s) or ("503" in s) or getattr(e, "status_code", None) in (429, 503):
+                logging.warning("Transient API error (attempt %d): %s", attempt, s)
+                if attempt == 1:
+                    time.sleep(60)
+                    continue
+            logging.error("Error calling safe_delete file stores: %s", s)
+            raise
+
+
+def safe_check():
+    """Delete existing file_search stores (retries on transient errors)."""
+    logging.info("-" * 100)
+    logging.info('Started checking file stores ...')
+    for attempt in (1, 2):
+        try:
+            for file_search_store in _llm_client.file_search_stores.list():
+                logging.info(f"Stale file_search_store: {file_search_store.name}, {file_search_store.display_name}")
+                logging.info(f"Stale file_search_store docs count: {file_search_store.active_documents_count}")
+                logging.info(f"Stale file_search_store size: {file_search_store.size_bytes}")
+                while True:
+                    response = _llm_client.file_search_stores.documents.list(
+                        parent=file_search_store.name,
+                    )
+                    for doc in response:
+                        logging.info(doc.model_dump_json(indent=4))
+                        logging.info(f'{doc.name}, {doc.display_name}, {doc.create_time}')
+                    break
 
             logging.info("-" * 100)
             return True
@@ -214,6 +260,7 @@ def create_store_and_upload_old(uploaded_files, display_name_prefix="upload-dir"
     store = safe_call(_llm_client.file_search_stores.create, config={"display_name": display_name_prefix})
     for f in uploaded_files:
         analyze_columns(f)
+        preprocess_file(f.name)
         local_path = f.name
         display = getattr(f, "filename", None) or os.path.basename(local_path)
         logging.info(f"local_path={local_path}, display={display}")
@@ -221,6 +268,7 @@ def create_store_and_upload_old(uploaded_files, display_name_prefix="upload-dir"
                        file=local_path,
                        file_search_store_name=store.name,
                        config={"display_name": display})
+
         # wait until import completes (poll)
         while not safe_call(lambda o: _llm_client.operations.get(o), op).done:
             logging.info('waiting for uploading files ...')
@@ -245,10 +293,13 @@ def create_store_and_upload(uploaded_files, display_name_prefix="upload-dir"):
                 display = getattr(f, "filename", None) or os.path.basename(local_path)
 
                 # run local analysis (assumes analyze_columns accepts a filepath)
+                """
                 try:
                     analyze_columns(local_path)
-                except Exception:
-                    logging.exception("analyze_columns failed for %s", local_path)
+                    preprocess_file(local_path)
+                except Exception as e:
+                    logging.exception(f"analyze or preprocess columns failed for {local_path}, error: {e}")
+                """
 
                 base = f'{os.path.splitext(display)[0]}{attempt}'
                 base_sanitized = _sanitize_resource_name(base)
@@ -259,7 +310,6 @@ def create_store_and_upload(uploaded_files, display_name_prefix="upload-dir"):
                 op = _llm_client.file_search_stores.import_file(
                     file_search_store_name=store.name,
                     file_name=uploaded.name,
-
                 )
 
                 # poll until import completes
@@ -267,6 +317,8 @@ def create_store_and_upload(uploaded_files, display_name_prefix="upload-dir"):
                     logging.info("waiting for import to complete for %s ...", uploaded.name)
                     time.sleep(5)
                     op = _llm_client.operations.get(op)
+            break  # all looks fine
+
         except Exception as e:
             s = str(e)
             if ("429" in s) or ("503" in s) or getattr(e, "status_code", None) in (429, 503):
@@ -309,6 +361,7 @@ def upload_and_start(files, model_name: str = 'gemini-2.5-flash'):
         return "No files uploaded.", None, None, None
     try:
         store = create_store_and_upload(files, model_name)
+        safe_check()
     except Exception as e:
         return f"Upload failed: {e}", None, None, None
     chat_agent, validator_agent = start_chat_with_store(store.name, model_name)
