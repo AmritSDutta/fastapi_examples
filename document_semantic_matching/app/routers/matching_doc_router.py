@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Body
 
 from app.database.document_repository import DocumentRepository
 from app.database.vector_db import VectorDb, get_db
-from app.routers.request_validator import sanitize_passage
+from app.routers.request_validator import sanitize_passage, do_moderation_checking
 from app.schema.document_record import DocumentRecord, SearchRequest, ClassificationResult
 from app.service.document_service import DocumentService
 from app.service.llm_classifier import ClassifyLLMService
@@ -33,6 +33,7 @@ async def search_docs(req: SearchRequest, svc: DocumentService = Depends(get_doc
 @doc_router.post("/classify", status_code=200, response_model=ClassificationResult)
 async def classify_doc(passage: str = Body(..., embed=True, max_length=5000)) -> ClassificationResult:
     passage: str = sanitize_passage(passage)
+    do_moderation_checking(passage)
     logger.info(f'received req: passage to be classified -> {passage[:100]} ....')
     try:
         docs = llm.classify(passage)

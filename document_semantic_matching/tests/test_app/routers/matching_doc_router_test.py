@@ -1,6 +1,6 @@
 from unittest.mock import AsyncMock, Mock, patch
 from fastapi.testclient import TestClient
-from app.main import app  # adjust import to match your project
+from app.main import app
 from app.routers.matching_doc_router import get_document_service
 from app.schema.document_record import ClassificationResult, Topic
 import app.routers.matching_doc_router as router_module
